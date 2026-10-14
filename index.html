@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Facility Set Cover</title>
+  <meta name="description" content="Place facilities on vertices so every vertex is within radius R. Compare covering at least once with covering exactly once.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='12' cy='14' r='9' fill='none' stroke='%232f6fde' stroke-width='2.5'/><circle cx='21' cy='18' r='9' fill='none' stroke='%23e0802a' stroke-width='2.5'/></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Facility Set Cover</h1>
+      <p class="sub">Facilities may only be placed on vertices. A facility covers every vertex within distance <i>R</i>. Use as few facilities as possible.</p>
+    </div>
+    <div class="top-actions">
+      <button id="btnShare" class="ghost" title="Copy a link to this exact instance">Copy share link</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel side">
+      <section>
+        <h2>Instance</h2>
+        <label class="row">Vertices <output id="nOut"></output></label>
+        <input type="range" id="n" min="5" max="60" step="1" value="30">
+        <label class="row">Coverage radius R <output id="ROut"></output></label>
+        <input type="range" id="R" min="4" max="50" step="0.5" value="18">
+        <label class="row">Min. spacing between vertices <output id="sepOut"></output></label>
+        <input type="range" id="sep" min="0" max="10" step="0.5" value="4">
+        <label class="row">Seed <input type="number" id="seed" value="1" min="0" step="1"></label>
+        <div class="btns">
+          <button id="btnRandom">Random instance</button>
+          <button id="btnTricky" class="primary">Find tricky instance</button>
+        </div>
+        <fieldset class="checks">
+          <legend>"Tricky" means</legend>
+          <label><input type="checkbox" id="reqExact" checked> "exactly 1" is infeasible</label>
+          <label><input type="checkbox" id="reqGreedy" checked> greedy is not optimal</label>
+          <span class="hint">No isolated vertices, always.</span>
+        </fieldset>
+        <p id="genMsg" class="msg" aria-live="polite"></p>
+      </section>
+
+      <section>
+        <h2>Interaction</h2>
+        <div class="seg" role="group" aria-label="Mode">
+          <button data-mode="play" class="on">Place facilities</button>
+          <button data-mode="edit">Edit vertices</button>
+        </div>
+        <p class="hint" id="modeHint"></p>
+        <button id="btnClear" class="ghost small">Clear my facilities</button>
+      </section>
+
+      <section>
+        <h2>Display</h2>
+        <label class="chk"><input type="checkbox" id="showCircles" checked> Coverage circles of facilities</label>
+        <label class="chk"><input type="checkbox" id="showEdges"> Edges between vertices within R</label>
+        <label class="chk"><input type="checkbox" id="showLabels" checked> Vertex labels</label>
+        <label class="chk"><input type="checkbox" id="hideAnswers" checked> Hide answers (challenge mode)</label>
+      </section>
+
+      <section>
+        <h2>Data</h2>
+        <details>
+          <summary>Edit coordinates (x, y per line)</summary>
+          <textarea id="coords" rows="10" spellcheck="false"></textarea>
+          <button id="btnApplyCoords" class="small">Apply coordinates</button>
+        </details>
+        <div class="btns">
+          <button id="btnLP1" class="small">Copy LP (≥ 1)</button>
+          <button id="btnLP2" class="small">Copy LP (= 1)</button>
+          <button id="btnCSVa" class="small">Coverage matrix CSV</button>
+          <button id="btnCSVd" class="small">Distance matrix CSV</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="center">
+      <div class="panel plotwrap">
+        <div class="plothead">
+          <div class="seg" role="tablist" aria-label="Solution shown">
+            <button data-view="mine" class="on">My attempt</button>
+            <button data-view="cover" class="ans">Optimal (≥ 1)</button>
+            <button data-view="exact" class="ans">Exact (= 1)</button>
+            <button data-view="greedy" class="ans">Greedy</button>
+          </div>
+          <button id="btnReveal" class="ghost small">Reveal answers</button>
+        </div>
+        <svg id="plot" viewBox="-4 -4 108 108" aria-label="Vertices in the plane"></svg>
+        <div class="legend">
+          <span><i class="dot d0"></i>uncovered</span>
+          <span><i class="dot d1"></i>covered once</span>
+          <span><i class="dot d2"></i>covered 2+ times</span>
+          <span><i class="dot fac"></i>facility</span>
+          <span id="hoverInfo" class="hover"></span>
+        </div>
+      </div>
+
+      <div class="cards">
+        <article class="panel card" id="cardMine"></article>
+        <article class="panel card" id="cardCover"></article>
+        <article class="panel card" id="cardExact"></article>
+        <article class="panel card" id="cardGreedy"></article>
+      </div>
+
+      <details class="panel model">
+        <summary>Model and why "exactly 1" fails</summary>
+        <div class="model-body">
+          <p>Vertices <i>i, j</i> ∈ V, Euclidean distance <i>d<sub>ij</sub></i>, coefficient <i>a<sub>ij</sub></i> = 1 if <i>d<sub>ij</sub></i> ≤ R (so <i>a<sub>ii</sub></i> = 1), decision <i>x<sub>j</sub></i> ∈ {0,1} = open a facility at <i>j</i>.</p>
+          <pre>min  Σ_j x_j
+s.t. Σ_j a_ij x_j  ≥ 1   for every vertex i     (set cover)
+     Σ_j a_ij x_j  = 1   for every vertex i     (exact cover variant)
+     x_j ∈ {0,1}</pre>
+          <p><b>Why "= 1" goes wrong.</b> With the equality, two open facilities can never both reach the same vertex. That rules out every overlap. On most layouts some vertex sits where any facility covering it overlaps another facility's circle, so the model becomes <b>infeasible</b>. In graph terms, "= 1" asks for a <i>perfect code</i> (efficient dominating set), and most graphs don't have one.</p>
+          <p><b>It can never just "cost more".</b> When the candidate sites are the vertices themselves, a feasible exact cover is always also a minimum cover. Suppose <i>E</i> covers every vertex exactly once. Then the neighbourhoods N[e] for e ∈ E are disjoint. Any feasible cover <i>D</i> must cover every e ∈ E, so it needs a vertex inside each N[e]. Hence |D| ≥ |E|. So "= 1" either gives the same answer or no answer at all. A higher cost is only possible when candidate sites differ from demand points.</p>
+          <p><b>Why eyeballing fails.</b> The instances from "Find tricky instance" are selected so that the greedy rule ("always open the facility covering the most uncovered vertices") is <i>not</i> optimal. The obvious choice is a trap. Optimality is proven by an exact branch-and-bound solver that runs in your browser.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="solver.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
